@@ -97,7 +97,9 @@ def _format_metric(val: float) -> str:
 
 
 # --------------------------------------------------------------------- UI
-st.title("📈 Forecasting Lab")
+from forecasting_lab.brand import apply_brand, hero
+apply_brand(st)
+hero(st, "Time Series Forecasting", "Forecasting Lab", "単純な時系列予測モデルを比較し、予測精度と予測区間を可視化します。")
 st.caption("単純な時系列予測モデルを比較し、予測精度と予測区間を可視化する小型アプリ")
 
 with st.sidebar:
