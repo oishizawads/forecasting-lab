@@ -22,8 +22,19 @@ import streamlit as st
 from forecasting_lab import data as ds
 from forecasting_lab.metrics import evaluate
 from forecasting_lab.models import LinearTrendModel, MovingAverageModel, NaiveModel
+from forecasting_lab.brand import (
+    apply_brand,
+    footer_backlink,
+    hero,
+    plotly_template,
+    section,
+    sidebar_header,
+    PALETTE,
+    show_table,
+)
 
 st.set_page_config(page_title="Forecasting Lab", page_icon="📈", layout="centered")
+apply_brand(st)
 
 # モデル表示名 -> 生成器（窓幅 w を受け取る）
 MODEL_BUILDERS = {
@@ -32,9 +43,9 @@ MODEL_BUILDERS = {
     "Linear Trend": lambda w: LinearTrendModel(),
 }
 MODEL_COLORS = {
-    "Naive": ("#1f77b4", "rgba(31,119,180,0.15)"),
-    "Moving Average": ("#2ca02c", "rgba(44,160,44,0.15)"),
-    "Linear Trend": ("#d62728", "rgba(214,39,40,0.15)"),
+    "Naive":         (PALETTE[0], "rgba(15,118,110,0.15)"),
+    "Moving Average":(PALETTE[1], "rgba(37,99,235,0.15)"),
+    "Linear Trend":  (PALETTE[2], "rgba(217,119,6,0.15)"),
 }
 Z_BY_LEVEL = {"80%": 1.28, "90%": 1.645, "95%": 1.96}
 DATASET_OPTIONS = ds.DATASET_NAMES + ["Upload CSV"]
@@ -96,14 +107,18 @@ def _format_metric(val: float) -> str:
     return f"{val:.3f}"
 
 
-# --------------------------------------------------------------------- UI
-from forecasting_lab.brand import apply_brand, hero
-apply_brand(st)
-hero(st, "Time Series Forecasting", "Forecasting Lab", "単純な時系列予測モデルを比較し、予測精度と予測区間を可視化します。")
-st.caption("単純な時系列予測モデルを比較し、予測精度と予測区間を可視化する小型アプリ")
+# --------------------------------------------------------------------- Hero
+hero(
+    st,
+    "TIME SERIES",
+    "Forecasting Lab",
+    "単純な時系列予測モデルを比較し、予測精度と予測区間を可視化します。",
+    chips=["Python", "Plotly", "Statsmodels", "stlite"],
+)
 
+# --------------------------------------------------------------------- Sidebar
 with st.sidebar:
-    st.header("設定")
+    sidebar_header(st, "Forecasting Lab")
     data_source = st.selectbox("データセット", DATASET_OPTIONS)
     file_bytes: bytes | None = None
     if data_source == "Upload CSV":
@@ -155,10 +170,10 @@ results = run_forecast(
 
 # --- データプレビュー
 with st.expander("データプレビュー", expanded=False):
-    st.dataframe(df.assign(value=df["value"].round(3)), use_container_width=True)
+    show_table(st, df.assign(value=df["value"].round(3)))
 
 # --- 予測グラフ
-st.subheader("予測グラフ（学習期間 / 評価期間 / 予測区間）")
+section(st, "FORECAST", "予測グラフ（学習期間 / 評価期間 / 予測区間）")
 fig = go.Figure()
 fig.add_trace(
     go.Scatter(
@@ -169,7 +184,7 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=test_dates, y=values[n_train:], name="評価（実測）",
-        mode="lines+markers", line=dict(color="#202124", width=2),
+        mode="lines+markers", line=dict(color="#0d1526", width=2),
     )
 )
 for mname, res in results.items():
@@ -195,16 +210,17 @@ for mname, res in results.items():
             mode="lines+markers", line=dict(color=line_color, width=2.5),
         )
     )
+fig.update_layout(**plotly_template())
 fig.update_layout(
-    xaxis_title="日付", yaxis_title="値",
+    xaxis_title="日付",
+    yaxis_title="値",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    margin=dict(l=10, r=10, t=40, b=10),
     height=420,
 )
 st.plotly_chart(fig, use_container_width=True)
 
 # --- 評価指標
-st.subheader("評価指標（評価期間）")
+section(st, "METRICS", "評価指標（評価期間）")
 rows = []
 for mname, res in results.items():
     if "error" in res:
@@ -220,7 +236,7 @@ for mname, res in results.items():
             }
         )
 metrics_df = pd.DataFrame(rows)
-st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+show_table(st, metrics_df, float_fmt="{:.3f}")
 
 st.download_button(
     "評価指標をCSVでダウンロード",
@@ -230,7 +246,7 @@ st.download_button(
 )
 
 # --- 残差プロット
-st.subheader("残差プロット（評価期間）")
+section(st, "RESIDUALS", "残差プロット（評価期間）")
 fig2 = go.Figure()
 for mname, res in results.items():
     if "error" in res:
@@ -242,14 +258,13 @@ for mname, res in results.items():
         )
     )
 fig2.add_hline(y=0, line_dash="dash", line_color="#9aa0a6")
+fig2.update_layout(**plotly_template())
 fig2.update_layout(
-    xaxis_title="日付", yaxis_title="残差",
+    xaxis_title="日付",
+    yaxis_title="残差",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    margin=dict(l=10, r=10, t=40, b=10),
     height=320,
 )
 st.plotly_chart(fig2, use_container_width=True)
 
-st.caption(
-    "本アプリは単純モデルの比較を目的としており、実運用の予測精度を保証するものではありません。"
-)
+footer_backlink(st, repo="forecasting-lab")
